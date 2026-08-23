@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "726480954111",
+    "project_id": "zahee-journal",
+    "storage_bucket": "zahee-journal.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:726480954111:android:fcd660ea2b02fe2b5de2ca",
+        "android_client_info": {
+          "package_name": "com.example.zahee"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "726480954111-or4t18gcp471nj8am9sfsl7pnl86av5k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.zahee",
+            "certificate_hash": "8982d4c7f05fd929cd870bcae23d78f9c32b25ac"
+          }
+        },
+        {
+          "client_id": "726480954111-1as1isbf724f9prsdaknkfklislm30th.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDR-gDhkWZH_cY5_7t-Hi4MNQ4KwreGwkA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "726480954111-1as1isbf724f9prsdaknkfklislm30th.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "726480954111-4k5mf8pjesc3afko3qh97jesfk7lhes0.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.zahee"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
