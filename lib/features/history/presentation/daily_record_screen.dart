@@ -4,7 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/goal.dart';
 import '../../../core/models/goal_completion.dart';
 import '../../../core/models/life_domain.dart';
+import '../../../core/models/moment.dart';
+import '../../../core/models/reflection.dart';
 import '../../goals/presentation/providers/goal_completion_providers.dart';
+import '../../moments/presentation/moment_compose_screen.dart';
+import '../../moments/presentation/providers/moment_providers.dart';
+import '../../reflections/presentation/providers/reflection_providers.dart';
+import '../../reflections/presentation/reflection_compose_screen.dart';
 import 'providers/history_providers.dart';
 
 const _weekdayNames = [
@@ -32,13 +38,10 @@ const _monthNames = [
 ];
 
 /// A single day's auto-generated record (TRD §13): every goal relevant
-/// to that day, grouped by domain, with a check or a dash showing
-/// whether it was completed.
-///
-/// Deliberately READ-ONLY. TRD §13 frames this as a generated summary
-/// of what happened, not an editing surface — and Reflections/Moments
-/// (also part of the §13 mockup) aren't built yet, so this screen only
-/// shows the goals section for now.
+/// to that day (read-only — see goalsForDateProvider's own doc comment
+/// on the historical-reconstruction heuristic this relies on), plus
+/// whatever reflections and moments were recorded for it (both CAN be
+/// added/edited/deleted from here, unlike the goals section).
 class DailyRecordScreen extends ConsumerWidget {
   final DateTime date;
   const DailyRecordScreen({super.key, required this.date});
@@ -50,8 +53,14 @@ class DailyRecordScreen extends ConsumerWidget {
     final completedById =
         ref.watch(completionsForDateProvider(normalized)).value ?? const {};
     final progress = ref.watch(dayProgressProvider(normalized));
+    final reflections =
+        ref.watch(reflectionsForDateProvider(normalized)).value ?? const [];
+    final moments =
+        ref.watch(momentsForDateProvider(normalized)).value ?? const [];
 
     final hasAnyGoals = goalsByDomain.values.any((g) => g.isNotEmpty);
+    final hasAnyContent =
+        hasAnyGoals || reflections.isNotEmpty || moments.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -59,10 +68,30 @@ class DailyRecordScreen extends ConsumerWidget {
           '${_weekdayNames[normalized.weekday - 1]}, '
           '${_monthNames[normalized.month - 1]} ${normalized.day}',
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_comment_outlined),
+            tooltip: 'Add reflection',
+            onPressed: () => Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(
+                builder: (_) => ReflectionComposeScreen(date: normalized),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.auto_awesome_outlined),
+            tooltip: 'Add moment',
+            onPressed: () => Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(
+                builder: (_) => MomentComposeScreen(date: normalized),
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
-        child: !hasAnyGoals
-            ? const Center(child: Text('No goals recorded for this day'))
+        child: !hasAnyContent
+            ? const Center(child: Text('Nothing recorded for this day'))
             : ListView(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 children: [
@@ -81,6 +110,13 @@ class DailyRecordScreen extends ConsumerWidget {
                         goals: goalsByDomain[domain]!,
                         completedById: completedById,
                       ),
+                  if (reflections.isNotEmpty)
+                    _ReflectionsSection(
+                      date: normalized,
+                      reflections: reflections,
+                    ),
+                  if (moments.isNotEmpty)
+                    _MomentsSection(date: normalized, moments: moments),
                 ],
               ),
       ),
@@ -144,6 +180,92 @@ class _GoalRecordRow extends StatelessWidget {
       ),
       title: Text(goal.title),
       subtitle: subtitle != null ? Text(subtitle) : null,
+    );
+  }
+}
+
+class _ReflectionsSection extends StatelessWidget {
+  final DateTime date;
+  final List<Reflection> reflections;
+
+  const _ReflectionsSection({required this.date, required this.reflections});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(height: 32),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+          child: Text(
+            'Reflections',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+        for (final reflection in reflections)
+          ListTile(
+            leading: Text(
+              reflection.domainId?.emoji ?? '📝',
+              style: const TextStyle(fontSize: 20),
+            ),
+            title: Text(reflection.content),
+            subtitle: Text(reflection.domainId?.label ?? 'Whole day'),
+            onTap: () => Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    ReflectionComposeScreen(date: date, existing: reflection),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _MomentsSection extends StatelessWidget {
+  final DateTime date;
+  final List<Moment> moments;
+
+  const _MomentsSection({required this.date, required this.moments});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(height: 32),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+          child: Text(
+            'Moments',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+        for (final moment in moments)
+          ListTile(
+            leading: Text(
+              moment.domainId?.emoji ?? '✨',
+              style: const TextStyle(fontSize: 20),
+            ),
+            title: Text(
+              moment.title?.isNotEmpty == true ? moment.title! : moment.content,
+            ),
+            subtitle: moment.title?.isNotEmpty == true
+                ? Text(
+                    moment.content,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  )
+                : null,
+            onTap: () => Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    MomentComposeScreen(date: date, existing: moment),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

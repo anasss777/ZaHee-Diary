@@ -8,17 +8,14 @@ import '../../../core/router/app_routes.dart';
 import '../../goals/presentation/providers/goal_completion_providers.dart';
 import '../../goals/presentation/providers/goal_providers.dart';
 import '../../goals/presentation/widgets/goal_tile.dart';
+import '../../history/presentation/daily_record_screen.dart';
+import '../../moments/presentation/moment_compose_screen.dart';
+import '../../reflections/presentation/reflection_compose_screen.dart';
 
 /// The primary screen of the app (TRD §5). Shows today's date, a
 /// greeting, per-domain progress, and lets the user complete goals
 /// inline without navigating away — that's the whole "10-30 second"
 /// core loop the product is built around.
-///
-/// NOTE: this screen isn't yet wrapped in the bottom-nav shell
-/// (Today / Life / History / Insights tabs) described in the project's
-/// milestone plan. That shell is its own small piece of work, separate
-/// from this screen's content, and hasn't been built yet — for now this
-/// is reached directly via the router's /today route.
 class TodayScreen extends ConsumerWidget {
   const TodayScreen({super.key});
 
@@ -116,12 +113,16 @@ class TodayScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
 
-              // Journal, reflections, and moments aren't built yet
-              // (TRD §11-13) — these surface the intended entry points
-              // now so the layout matches the product design, without
-              // blocking this screen on features that come later.
+              // Moments aren't built yet (TRD §12) — this button surfaces
+              // the intended entry point now so the layout matches the
+              // product design, without blocking on a feature that comes
+              // later.
               OutlinedButton(
-                onPressed: () => _showComingSoon(context, "Today's journal"),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => DailyRecordScreen(date: DateTime.now()),
+                  ),
+                ),
                 child: const Text("View today's journal"),
               ),
               const SizedBox(height: 12),
@@ -129,13 +130,31 @@ class TodayScreen extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   TextButton.icon(
-                    onPressed: () => _showComingSoon(context, 'Reflections'),
+                    // Full-screen via the ROOT navigator (not a plain
+                    // push, which would stay nested inside this tab's own
+                    // branch navigator and leave the bottom nav bar
+                    // visible underneath) — same reasoning as "Manage
+                    // goals" above, just without a named route since this
+                    // one needs a DateTime argument.
+                    onPressed: () =>
+                        Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                ReflectionComposeScreen(date: DateTime.now()),
+                          ),
+                        ),
                     icon: const Icon(Icons.add),
                     label: const Text('Reflection'),
                   ),
                   const SizedBox(width: 16),
                   TextButton.icon(
-                    onPressed: () => _showComingSoon(context, 'Moments'),
+                    onPressed: () =>
+                        Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                MomentComposeScreen(date: DateTime.now()),
+                          ),
+                        ),
                     icon: const Icon(Icons.add),
                     label: const Text('Moment'),
                   ),
@@ -145,12 +164,6 @@ class TodayScreen extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
-
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature — coming in a future milestone')),
     );
   }
 }
