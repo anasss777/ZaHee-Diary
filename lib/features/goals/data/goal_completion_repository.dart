@@ -71,6 +71,38 @@ class GoalCompletionRepository {
     await _completionsCollection(userId).doc(_docId(goalId, date)).delete();
   }
 
+  /// Deletes every completion for [goalId] within `[start, end)`.
+  ///
+  /// Used for undo on weekly/monthly goals: since satisfying such a
+  /// goal only requires ONE completion anywhere in its period, the
+  /// completion that's actually satisfying it might not be on today's
+  /// date — it could be any day earlier in the week/month. A single-day
+  /// `markIncomplete` wouldn't necessarily touch the right document.
+  ///
+  /// Deliberately computes each day's deterministic ID directly and
+  /// batch-deletes by ID, rather than querying `where('goalId', ...)
+  /// .where('date', ...)` — that combination (equality + range on
+  /// different fields) would require a Firestore composite index; this
+  /// doesn't, because the IDs are derived, not looked up. Same
+  /// bounded-batch-size reasoning as SubcategoryRepository.
+  /// reorderSubcategories: at most 31 deletes (a month), trivially under
+  /// Firestore's 500-write batch limit.
+  Future<void> clearCompletionsInRange({
+    required String userId,
+    required String goalId,
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final batch = _firestore.batch();
+    var day = GoalCompletion.normalizeDate(start);
+    final normalizedEnd = GoalCompletion.normalizeDate(end);
+    while (day.isBefore(normalizedEnd)) {
+      batch.delete(_completionsCollection(userId).doc(_docId(goalId, day)));
+      day = day.add(const Duration(days: 1));
+    }
+    await batch.commit();
+  }
+
   Future<GoalCompletion?> getCompletion({
     required String userId,
     required String goalId,

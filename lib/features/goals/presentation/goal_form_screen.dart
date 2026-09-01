@@ -196,10 +196,7 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
             !subcategories.any((s) => s.id == _subcategoryId)
         ? _findById(ref.watch(allSubcategoriesProvider).value, _subcategoryId)
         : null;
-    final dropdownItems = [
-      ...subcategories,
-      if (currentSubcategory != null) currentSubcategory,
-    ];
+    final dropdownItems = [...subcategories, ?currentSubcategory];
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.isEditing ? 'Edit goal' : 'New goal')),

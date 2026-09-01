@@ -26,6 +26,8 @@ class AuthFailure implements Exception {
       'account-exists-with-different-credential' =>
         'An account already exists with a different sign-in method.',
       'sign-in-cancelled' => 'Sign-in was cancelled.',
+      'requires-recent-login' =>
+        'For your security, please sign out and sign back in, then try again.',
       _ => 'Something went wrong. Please try again.',
     };
     return AuthFailure(message, code: code);

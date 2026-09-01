@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../core/constants/google_auth_config.dart';
 import '../../../core/models/app_user.dart';
+import '../../../core/models/notification_preferences.dart';
 import '../domain/auth_failure.dart';
 
 /// Owns all interaction with Firebase Auth, Google Sign-In, and the
@@ -29,9 +31,9 @@ class AuthRepository {
     fb_auth.FirebaseAuth? firebaseAuth,
     GoogleSignIn? googleSignIn,
     FirebaseFirestore? firestore,
-  })  : _firebaseAuth = firebaseAuth ?? fb_auth.FirebaseAuth.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+  }) : _firebaseAuth = firebaseAuth ?? fb_auth.FirebaseAuth.instance,
+       _googleSignIn = googleSignIn ?? GoogleSignIn.instance,
+       _firestore = firestore ?? FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
       _firestore.collection('users');
@@ -118,8 +120,9 @@ class AuthRepository {
     await initialize();
 
     try {
-      final GoogleSignInAccount googleUser =
-          await _googleSignIn.authenticate(scopeHint: const ['email']);
+      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate(
+        scopeHint: const ['email'],
+      );
 
       final idToken = googleUser.authentication.idToken;
 
@@ -169,6 +172,101 @@ class AuthRepository {
     });
   }
 
+  /// Updates the stored IANA timezone (e.g. "Africa/Tunis"). Called from
+  /// Settings, either with a value the user picked or one detected via
+  /// [detectAndUpdateTimezone].
+  Future<void> updateTimezone(String userId, String timezone) async {
+    await _usersCollection.doc(userId).update({
+      'timezone': timezone,
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    });
+  }
+
+  /// Re-runs timezone detection and persists the result — what Settings'
+  /// "Detect automatically" button calls. Combined into one repository
+  /// method (rather than exposing [_detectTimezone] publicly) so
+  /// `flutter_timezone` stays imported only here, same principle as
+  /// `firebase_auth`/`google_sign_in` being confined to this file.
+  Future<void> detectAndUpdateTimezone(String userId) async {
+    await updateTimezone(userId, await _detectTimezone());
+  }
+
+  /// Persists the full notification preferences object as a nested map.
+  /// The caller (Settings) builds the new [NotificationPreferences] via
+  /// its own `copyWith` and passes the whole thing — simpler than N
+  /// individual toggle methods on this repository for each field.
+  Future<void> updateNotificationPreferences(
+    String userId,
+    NotificationPreferences preferences,
+  ) async {
+    await _usersCollection.doc(userId).update({
+      'notificationPreferences': preferences.toMap(),
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    });
+  }
+
+  /// Permanently deletes the user's account and all of their data.
+  ///
+  /// Order matters: Firestore data is wiped FIRST, then the Firebase
+  /// Auth account itself — if we deleted the Auth account first and the
+  /// Firestore cleanup then failed partway through, the user would be
+  /// locked out with orphaned data still sitting in Firestore and no way
+  /// to sign back in and retry.
+  ///
+  /// KNOWN LIMITATION: Firebase requires a *recent* sign-in for account
+  /// deletion (a security measure, not a bug on our end). If the user's
+  /// session is old, `_firebaseAuth.currentUser.delete()` throws
+  /// `requires-recent-login`, which is mapped to a clear message telling
+  /// them to sign out and back in first. A smoother flow would silently
+  /// re-prompt for credentials inline instead of making them start over
+  /// — that's a reasonable follow-up, not implemented here to keep this
+  /// milestone bounded.
+  Future<void> deleteAccount(String userId) async {
+    await _deleteAllUserData(userId);
+
+    try {
+      await _firebaseAuth.currentUser?.delete();
+    } on fb_auth.FirebaseAuthException catch (e) {
+      throw AuthFailure.fromCode(e.code);
+    }
+  }
+
+  /// Deletes every document in every subcollection under
+  /// `users/{userId}`, then the user document itself. Batched in chunks
+  /// of 400 (Firestore's hard limit is 500 writes per batch — leaving
+  /// headroom rather than cutting it exactly at the ceiling).
+  ///
+  /// Deliberately hardcodes this list of collection names rather than
+  /// importing each feature's repository class — AuthRepository staying
+  /// decoupled from Goals/Reflections/Moments/Subcategories matters more
+  /// here than avoiding this small amount of duplication, since every
+  /// other repository already constructs these same paths independently.
+  Future<void> _deleteAllUserData(String userId) async {
+    const subcollections = [
+      'goals',
+      'goalCompletions',
+      'subcategories',
+      'reflections',
+      'moments',
+    ];
+
+    for (final name in subcollections) {
+      final collectionRef = _usersCollection.doc(userId).collection(name);
+      var snapshot = await collectionRef.limit(400).get();
+
+      while (snapshot.docs.isNotEmpty) {
+        final batch = _firestore.batch();
+        for (final doc in snapshot.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+        snapshot = await collectionRef.limit(400).get();
+      }
+    }
+
+    await _usersCollection.doc(userId).delete();
+  }
+
   /// One-time fetch used right after a sign-in/sign-up call completes,
   /// so those methods can return an [AppUser] immediately without
   /// waiting on the live stream's first emission. Creates the profile
@@ -198,9 +296,19 @@ class AuthRepository {
     yield* docRef.snapshots().map((doc) => _fromFirestore(doc));
   }
 
-  /// NOTE: `timezone` is defaulted to 'UTC' here. A device timezone
-  /// package (e.g. `flutter_timezone`) should replace this default in a
-  /// later pass — tracked separately, not blocking this milestone.
+  /// Detects the device's IANA timezone (e.g. "Africa/Tunis") via
+  /// `flutter_timezone`. Falls back to 'UTC' on any failure — this runs
+  /// during account creation, and a failed timezone lookup should never
+  /// block sign-up. The user can always correct it later in Settings.
+  Future<String> _detectTimezone() async {
+    try {
+      final info = await FlutterTimezone.getLocalTimezone();
+      return info.identifier;
+    } catch (_) {
+      return 'UTC';
+    }
+  }
+
   Future<AppUser> _createProfile(fb_auth.User fbUser) async {
     final now = DateTime.now();
     final newUser = AppUser(
@@ -208,7 +316,7 @@ class AuthRepository {
       email: fbUser.email ?? '',
       displayName: fbUser.displayName,
       photoURL: fbUser.photoURL,
-      timezone: 'UTC',
+      timezone: await _detectTimezone(),
       locale: 'en',
       hasCompletedOnboarding: false,
       createdAt: now,
@@ -229,6 +337,9 @@ class AuthRepository {
       timezone: data['timezone'] as String? ?? 'UTC',
       locale: data['locale'] as String? ?? 'en',
       hasCompletedOnboarding: data['hasCompletedOnboarding'] as bool? ?? false,
+      notificationPreferences: NotificationPreferences.fromMap(
+        data['notificationPreferences'] as Map<String, dynamic>?,
+      ),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       updatedAt: (data['updatedAt'] as Timestamp).toDate(),
     );
@@ -242,6 +353,7 @@ class AuthRepository {
       'timezone': user.timezone,
       'locale': user.locale,
       'hasCompletedOnboarding': user.hasCompletedOnboarding,
+      'notificationPreferences': user.notificationPreferences.toMap(),
       'createdAt': Timestamp.fromDate(user.createdAt),
       'updatedAt': Timestamp.fromDate(user.updatedAt),
     };

@@ -11,6 +11,7 @@ abstract class AppRoutes {
   static const today = '/today';
   static const goals = '/goals';
   static const subcategories = '/subcategories';
+  static const settings = '/settings';
   static const life = '/life';
   static const history = '/history';
   static const insights = '/insights';

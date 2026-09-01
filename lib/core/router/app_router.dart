@@ -7,7 +7,10 @@ import '../../features/auth/presentation/sign_in_screen.dart';
 import '../../features/auth/presentation/sign_up_screen.dart';
 import '../../features/goals/presentation/goals_list_screen.dart';
 import '../../features/history/presentation/calendar_screen.dart';
+import '../../features/insights/presentation/insights_screen.dart';
+import '../../features/life/presentation/life_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
+import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/subcategories/presentation/subcategories_screen.dart';
 import '../../features/today/presentation/today_screen.dart';
 import 'app_routes.dart';
@@ -15,27 +18,13 @@ import 'scaffold_with_nav_bar.dart';
 
 export 'app_routes.dart';
 
-/// Placeholder screens for routes whose real feature isn't built yet.
-/// Each one is replaced in its own milestone — keeping them here (rather
-/// than leaving the route undefined) lets the router itself be fully
-/// wired and testable now.
-class _PlaceholderScreen extends StatelessWidget {
-  final String label;
-  const _PlaceholderScreen(this.label);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(body: Center(child: Text('$label — coming soon')));
-  }
-}
-
 /// Re-evaluates the router's redirect logic whenever the auth stream
 /// emits, without rebuilding the whole router. go_router requires a
 /// [Listenable] for this; Riverpod's stream provider doesn't give us
 /// one directly, so we bridge it.
 class _AuthChangeNotifier extends ChangeNotifier {
   _AuthChangeNotifier(Ref ref) {
-    ref.listen(authStateChangesProvider, (_, __) => notifyListeners());
+    ref.listen(authStateChangesProvider, (_, _) => notifyListeners());
   }
 }
 
@@ -122,6 +111,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const SubcategoriesScreen(),
       ),
+      GoRoute(
+        path: AppRoutes.settings,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const SettingsScreen(),
+      ),
 
       // The four persistent tabs. Each branch gets its own nested
       // navigator and preserves its own stack/scroll state when the
@@ -144,7 +138,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.life,
-                builder: (context, state) => const _PlaceholderScreen('Life'),
+                builder: (context, state) => const LifeScreen(),
               ),
             ],
           ),
@@ -162,8 +156,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.insights,
-                builder: (context, state) =>
-                    const _PlaceholderScreen('Insights'),
+                builder: (context, state) => const InsightsScreen(),
               ),
             ],
           ),

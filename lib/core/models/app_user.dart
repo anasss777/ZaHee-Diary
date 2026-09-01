@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'notification_preferences.dart';
+
 /// The authenticated user's profile (TRD §21).
 ///
 /// [timezone] matters beyond display: daily goal completion is evaluated
@@ -24,6 +26,8 @@ class AppUser extends Equatable {
   /// every goal without needing to be sent back through onboarding.
   final bool hasCompletedOnboarding;
 
+  final NotificationPreferences notificationPreferences;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -35,6 +39,7 @@ class AppUser extends Equatable {
     required this.timezone,
     required this.locale,
     this.hasCompletedOnboarding = false,
+    this.notificationPreferences = const NotificationPreferences(),
     required this.createdAt,
     required this.updatedAt,
   });
@@ -45,6 +50,7 @@ class AppUser extends Equatable {
     String? timezone,
     String? locale,
     bool? hasCompletedOnboarding,
+    NotificationPreferences? notificationPreferences,
     DateTime? updatedAt,
   }) {
     return AppUser(
@@ -56,6 +62,8 @@ class AppUser extends Equatable {
       locale: locale ?? this.locale,
       hasCompletedOnboarding:
           hasCompletedOnboarding ?? this.hasCompletedOnboarding,
+      notificationPreferences:
+          notificationPreferences ?? this.notificationPreferences,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
     );
@@ -63,14 +71,15 @@ class AppUser extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        email,
-        displayName,
-        photoURL,
-        timezone,
-        locale,
-        hasCompletedOnboarding,
-        createdAt,
-        updatedAt,
-      ];
+    id,
+    email,
+    displayName,
+    photoURL,
+    timezone,
+    locale,
+    hasCompletedOnboarding,
+    notificationPreferences,
+    createdAt,
+    updatedAt,
+  ];
 }

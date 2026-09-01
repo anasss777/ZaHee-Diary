@@ -77,6 +77,11 @@ class TodayScreen extends ConsumerWidget {
             tooltip: 'Manage goals',
             onPressed: () => context.push(AppRoutes.goals),
           ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => context.push(AppRoutes.settings),
+          ),
         ],
       ),
       body: SafeArea(

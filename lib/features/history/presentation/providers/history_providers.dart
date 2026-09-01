@@ -49,26 +49,44 @@ final monthCompletionsProvider =
 
 /// Which goals "count" for a given day, grouped by domain.
 ///
-/// Uses [completionsForDateProvider] from goal_completion_providers.dart
-/// (a single-date live listener) rather than slicing the month bucket
-/// above — appropriate here because this provider backs the DAILY
-/// RECORD screen, where only one date is ever open at a time. The
-/// calendar GRID (many days at once) uses [monthDayProgressProvider]
-/// below instead, which derives from the one month-range listener
-/// specifically to avoid opening up to 31 separate per-day listeners.
+/// FREQUENCY-AWARE, with a deliberate asymmetry between daily and
+/// weekly/monthly goals:
+///  - Daily/custom goals use the heuristic below (existed by this day,
+///    and currently active or has a completion this day) — shown every
+///    day, matching how they actually work.
+///  - Weekly/monthly goals are shown ONLY on the day they were actually
+///    completed. They are NOT shown as "still pending" on every other
+///    day of their period — since a weekly goal is satisfiable on any
+///    one of 7 days, repeating it as an unchecked item on all 7 would
+///    clutter what's meant to be a day-by-day journal of what actually
+///    happened, not a nagging list of everything not yet done. This
+///    means Daily Record never surfaces "you missed this weekly goal" —
+///    it only ever shows successes for non-daily goals. A reasonable,
+///    bounded scope choice, not an oversight.
 ///
-/// HEURISTIC, not a perfect historical reconstruction: a goal counts for
-/// [date] if it existed by then (`startDate <= date`) AND EITHER it's
-/// still active today OR it has a completion recorded on that date.
-/// This is a deliberate compromise — `archiveGoal()` only flips
-/// `isActive`, it never records *when* archiving happened (TRD's data
-/// model doesn't call for an `archivedAt` timestamp), so there's no way
-/// to know precisely whether a since-archived goal was still active on
-/// some past date. The practical effect: browsing history shows an
-/// archived goal on days it has a completion (so past progress isn't
-/// erased), but not on days it doesn't (so old history isn't cluttered
-/// with goals long since dropped). Good enough for the MVP; a fully
-/// accurate version would need goals to track their own archive date.
+/// Uses [completionsForDateProvider] from goal_completion_providers.dart
+/// (a single-date live listener, EXACT-day match) rather than slicing
+/// the month bucket above — appropriate here because this provider
+/// backs the DAILY RECORD screen, where only one date is ever open at a
+/// time, and because "exact day" is precisely what both branches above
+/// need. The calendar GRID (many days at once) uses
+/// [monthDayProgressProvider] below instead, which derives from the one
+/// month-range listener specifically to avoid opening up to 31 separate
+/// per-day listeners.
+///
+/// Separately, for daily/custom goals: HEURISTIC, not a perfect
+/// historical reconstruction. A goal counts for [date] if it existed by
+/// then (`startDate <= date`) AND EITHER it's still active today OR it
+/// has a completion recorded on that date. This is a deliberate
+/// compromise — `archiveGoal()` only flips `isActive`, it never records
+/// *when* archiving happened (TRD's data model doesn't call for an
+/// `archivedAt` timestamp), so there's no way to know precisely whether
+/// a since-archived goal was still active on some past date. The
+/// practical effect: browsing history shows an archived goal on days it
+/// has a completion (so past progress isn't erased), but not on days it
+/// doesn't (so old history isn't cluttered with goals long since
+/// dropped). Good enough for the MVP; a fully accurate version would
+/// need goals to track their own archive date.
 final goalsForDateProvider =
     Provider.family<Map<LifeDomain, List<Goal>>, DateTime>((ref, date) {
       final normalized = GoalCompletion.normalizeDate(date);
@@ -79,7 +97,14 @@ final goalsForDateProvider =
 
       final relevant = allGoals.where((g) {
         if (g.startDate.isAfter(normalized)) return false;
-        return g.isActive || completedGoalIds.contains(g.id);
+
+        if (g.frequency == GoalFrequency.daily ||
+            g.frequency == GoalFrequency.custom) {
+          return g.isActive || completedGoalIds.contains(g.id);
+        }
+
+        // Weekly/monthly — see this provider's doc comment above.
+        return completedGoalIds.contains(g.id);
       });
 
       final grouped = <LifeDomain, List<Goal>>{
@@ -118,6 +143,12 @@ final dayProgressProvider = Provider.family<DomainProgress, DateTime>((
 /// listener (NOT from [dayProgressProvider]/[completionsForDateProvider]
 /// above) — that distinction is the whole point: rendering ~30 days
 /// must not open ~30 separate Firestore listeners.
+///
+/// Uses the SAME frequency-aware filter as [goalsForDateProvider] above
+/// (daily/custom shown every day; weekly/monthly only on days actually
+/// completed) — duplicated here rather than calling that provider,
+/// specifically to stay within the single month-range listener rather
+/// than opening one per day.
 final monthDayProgressProvider =
     Provider.family<Map<DateTime, DomainProgress>, DateTime>((
       ref,
@@ -139,7 +170,11 @@ final monthDayProgressProvider =
 
         final relevant = allGoals.where((g) {
           if (g.startDate.isAfter(day)) return false;
-          return g.isActive || completedGoalIds.contains(g.id);
+          if (g.frequency == GoalFrequency.daily ||
+              g.frequency == GoalFrequency.custom) {
+            return g.isActive || completedGoalIds.contains(g.id);
+          }
+          return completedGoalIds.contains(g.id);
         });
 
         result[day] = DomainProgress(

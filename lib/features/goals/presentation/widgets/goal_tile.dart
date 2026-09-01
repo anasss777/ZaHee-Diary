@@ -1,45 +1,70 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/models/goal.dart';
+import '../../../../core/utils/motion.dart';
 import '../goal_form_screen.dart';
 import '../providers/goal_completion_providers.dart';
 import '../providers/goal_providers.dart';
 
-/// A single goal row with a completion toggle, used by both the Goals
-/// management screen and the Today screen. Kept as one shared widget
-/// rather than two copies so completion logic (the numeric-value dialog,
-/// undo behavior) can't drift between the two screens.
+/// A single goal row with a completion toggle, used by the Goals
+/// management screen and the Today screen.
+///
+/// [date] exists for a future use case (an interactive, editable
+/// History view) but nothing currently passes it — Daily Record has its
+/// own separate, deliberately read-only row widget instead, which stays
+/// correct under the frequency-aware model without needing this one:
+/// weekly/monthly goals only ever appear there on the exact day they
+/// were completed (see history_providers.dart's goalsForDateProvider),
+/// so an exact-day completion check is already sufficient there. Wiring
+/// History to this widget instead — trading "read-only journal" for
+/// "editable past days" — is a reasonable future product decision, not
+/// something this change should make silently by half-wiring it.
 class GoalTile extends ConsumerWidget {
   final Goal goal;
 
-  /// The Goals screen offers archiving from here; Today is a daily-use
-  /// surface and deliberately doesn't expose goal management actions
-  /// (TRD's "do first" philosophy — Today should never feel like a
-  /// place you go to administer things).
+  /// The Goals screen offers archiving from here; Today and History are
+  /// daily-use surfaces and deliberately don't expose goal management
+  /// actions (TRD's "do first" philosophy).
   final bool showManagementActions;
+
+  /// Which day this tile reflects completion for. Defaults to today
+  /// (via [todayProvider]) when omitted — History passes a specific past
+  /// date so the same widget works for "today" and "any day" without a
+  /// separate read-only variant.
+  final DateTime? date;
 
   const GoalTile({
     super.key,
     required this.goal,
     this.showManagementActions = true,
+    this.date,
   });
 
   Future<void> _handleCheckboxTap(
     BuildContext context,
     WidgetRef ref,
     bool isCompleted,
+    DateTime effectiveDate,
   ) async {
     final actions = ref.read(goalCompletionActionsProvider);
     if (actions == null) return;
 
     if (isCompleted) {
-      await actions.undo(goal);
+      // A lighter, neutral click rather than an impact — undoing is a
+      // normal, everyday action here (correcting a mis-tap, changing
+      // your mind), not something to give negative/punitive feedback
+      // for. Matches TRD's non-judgmental tone in haptic form, not just
+      // wording.
+      HapticFeedback.selectionClick();
+      await actions.undo(goal, date: effectiveDate);
       return;
     }
 
     if (goal.type == GoalType.boolean) {
-      await actions.complete(goal);
+      HapticFeedback.lightImpact();
+      await actions.complete(goal, date: effectiveDate);
       return;
     }
 
@@ -77,13 +102,27 @@ class GoalTile extends ConsumerWidget {
     );
 
     if (value != null) {
-      await actions.complete(goal, value: value);
+      HapticFeedback.lightImpact();
+      await actions.complete(goal, date: effectiveDate, value: value);
     }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isCompleted = ref.watch(isCompletedTodayProvider(goal.id));
+    final today = ref.watch(todayProvider);
+    final effectiveDate = date ?? today;
+    final isFutureDate = effectiveDate.isAfter(today);
+
+    // Explicit date (History showing a specific past day) → exact-day
+    // status, matching what actually happened that day. No explicit
+    // date (Today/Goals, meaning "right now") → frequency-aware status:
+    // a weekly/monthly goal reads as complete for the whole period once
+    // satisfied anywhere in it, not just on the day it was done.
+    final isCompleted = date != null
+        ? ref.watch(
+            isCompletedOnDateProvider((goalId: goal.id, date: effectiveDate)),
+          )
+        : ref.watch(isGoalDoneForCurrentPeriodProvider(goal));
 
     final subtitle = goal.type == GoalType.numeric
         ? '${goal.frequency.label} · ${goal.target?.toStringAsFixed(0)} ${goal.unit ?? ''}'
@@ -91,11 +130,32 @@ class GoalTile extends ConsumerWidget {
 
     return ListTile(
       leading: IconButton(
-        icon: Icon(
-          isCompleted ? Icons.check_circle : Icons.circle_outlined,
-          color: isCompleted ? Theme.of(context).colorScheme.primary : null,
+        icon: AnimatedSwitcher(
+          duration: motionDuration(context, const Duration(milliseconds: 180)),
+          transitionBuilder: (child, animation) => ScaleTransition(
+            scale: animation,
+            child: FadeTransition(opacity: animation, child: child),
+          ),
+          child: Icon(
+            isCompleted ? Icons.check_circle : Icons.circle_outlined,
+            // The KEY is what makes AnimatedSwitcher treat these as two
+            // different widgets to cross-fade between, rather than one
+            // it just mutates in place with no transition.
+            key: ValueKey(isCompleted),
+            color: isCompleted
+                ? Theme.of(context).colorScheme.primary
+                : isFutureDate
+                ? Theme.of(context).disabledColor
+                : null,
+          ),
         ),
-        onPressed: () => _handleCheckboxTap(context, ref, isCompleted),
+        // Completing a goal for a future date doesn't make sense — the
+        // control is visible (so the layout stays consistent day to
+        // day) but inert.
+        onPressed: isFutureDate
+            ? null
+            : () =>
+                  _handleCheckboxTap(context, ref, isCompleted, effectiveDate),
       ),
       title: Text(
         goal.title,
