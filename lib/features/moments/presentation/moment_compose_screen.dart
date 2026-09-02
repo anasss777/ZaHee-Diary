@@ -23,7 +23,8 @@ class MomentComposeScreen extends ConsumerStatefulWidget {
   const MomentComposeScreen({super.key, required this.date, this.existing});
 
   @override
-  ConsumerState<MomentComposeScreen> createState() => _MomentComposeScreenState();
+  ConsumerState<MomentComposeScreen> createState() =>
+      _MomentComposeScreenState();
 }
 
 class _MomentComposeScreenState extends ConsumerState<MomentComposeScreen> {
@@ -35,8 +36,12 @@ class _MomentComposeScreenState extends ConsumerState<MomentComposeScreen> {
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.existing?.title ?? '');
-    _contentController = TextEditingController(text: widget.existing?.content ?? '');
+    _titleController = TextEditingController(
+      text: widget.existing?.title ?? '',
+    );
+    _contentController = TextEditingController(
+      text: widget.existing?.content ?? '',
+    );
     _domain = widget.existing?.domainId;
   }
 
@@ -106,7 +111,9 @@ class _MomentComposeScreenState extends ConsumerState<MomentComposeScreen> {
     );
     if (confirmed != true) return;
 
-    await ref.read(momentRepositoryProvider).deleteMoment(existing.userId, existing.id);
+    await ref
+        .read(momentRepositoryProvider)
+        .deleteMoment(existing.userId, existing.id);
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -119,6 +126,7 @@ class _MomentComposeScreenState extends ConsumerState<MomentComposeScreen> {
           if (widget.existing != null)
             IconButton(
               icon: const Icon(Icons.delete_outline),
+              tooltip: 'Delete moment',
               onPressed: _delete,
             ),
         ],

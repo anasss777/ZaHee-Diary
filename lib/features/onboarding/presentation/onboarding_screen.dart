@@ -255,7 +255,7 @@ class _DomainSubcategoryPreview extends StatelessWidget {
                       ? 'Setting up…'
                       : subcategories.map((s) => s.name).join(' · '),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -354,7 +354,7 @@ class _DomainGoalsRow extends StatelessWidget {
                   Text(
                     'No goals yet',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.outline,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   )
                 else

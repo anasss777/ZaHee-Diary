@@ -78,6 +78,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.chevron_left),
+                    tooltip: 'Previous month',
                     onPressed: () => _changeMonth(-1),
                   ),
                   Text(
@@ -86,6 +87,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.chevron_right),
+                    tooltip: 'Next month',
                     onPressed: () => _changeMonth(1),
                   ),
                 ],
@@ -100,7 +102,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                           label,
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(
-                                color: Theme.of(context).colorScheme.outline,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                         ),
                       ),
@@ -184,7 +188,7 @@ class _DayCell extends StatelessWidget {
     final textColor = fillColor == scheme.primary
         ? scheme.onPrimary
         : isFuture
-        ? scheme.outline
+        ? scheme.onSurfaceVariant
         : null;
 
     return Padding(

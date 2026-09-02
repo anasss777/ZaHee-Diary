@@ -82,6 +82,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.chevron_left),
+                    tooltip: 'Previous ${_period.name}',
                     onPressed: () => _shiftPeriod(-1),
                   ),
                   Text(
@@ -90,6 +91,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.chevron_right),
+                    tooltip: 'Next ${_period.name}',
                     onPressed: () => _shiftPeriod(1),
                   ),
                 ],
@@ -110,7 +112,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                       )
                     : ListView.separated(
                         itemCount: insights.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 12),
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (context, i) =>
                             _InsightCard(insight: insights[i]),
                       ),

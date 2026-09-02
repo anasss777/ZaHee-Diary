@@ -103,10 +103,19 @@ class ZaheeJournalApp extends ConsumerWidget {
       title: 'Zahee Journal',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3E6259)),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF334155)),
         useMaterial3: true,
       ),
       routerConfig: router,
+      builder: (context, child) {
+        final clampedScaler = MediaQuery.textScalerOf(
+          context,
+        ).clamp(minScaleFactor: 1.0, maxScaleFactor: 1.5);
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: clampedScaler),
+          child: child!,
+        );
+      },
     );
   }
 }

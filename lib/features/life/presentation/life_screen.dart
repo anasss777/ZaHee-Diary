@@ -83,6 +83,7 @@ class _LifeScreenState extends ConsumerState<LifeScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.chevron_left),
+                    tooltip: 'Previous ${_period.name}',
                     onPressed: () => _shiftPeriod(-1),
                   ),
                   Text(
@@ -91,6 +92,7 @@ class _LifeScreenState extends ConsumerState<LifeScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.chevron_right),
+                    tooltip: 'Next ${_period.name}',
                     onPressed: () => _shiftPeriod(1),
                   ),
                 ],

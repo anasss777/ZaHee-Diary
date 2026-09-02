@@ -93,7 +93,7 @@ class TodayScreen extends ConsumerWidget {
             Text(
               _formattedDate(),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 24),

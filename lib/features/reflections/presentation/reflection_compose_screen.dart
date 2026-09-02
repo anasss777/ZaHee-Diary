@@ -18,10 +18,12 @@ class ReflectionComposeScreen extends ConsumerStatefulWidget {
   const ReflectionComposeScreen({super.key, required this.date, this.existing});
 
   @override
-  ConsumerState<ReflectionComposeScreen> createState() => _ReflectionComposeScreenState();
+  ConsumerState<ReflectionComposeScreen> createState() =>
+      _ReflectionComposeScreenState();
 }
 
-class _ReflectionComposeScreenState extends ConsumerState<ReflectionComposeScreen> {
+class _ReflectionComposeScreenState
+    extends ConsumerState<ReflectionComposeScreen> {
   late final TextEditingController _contentController;
   LifeDomain? _domain;
   bool _isSubmitting = false;
@@ -29,7 +31,9 @@ class _ReflectionComposeScreenState extends ConsumerState<ReflectionComposeScree
   @override
   void initState() {
     super.initState();
-    _contentController = TextEditingController(text: widget.existing?.content ?? '');
+    _contentController = TextEditingController(
+      text: widget.existing?.content ?? '',
+    );
     _domain = widget.existing?.domainId;
   }
 
@@ -94,10 +98,9 @@ class _ReflectionComposeScreenState extends ConsumerState<ReflectionComposeScree
     );
     if (confirmed != true) return;
 
-    await ref.read(reflectionRepositoryProvider).deleteReflection(
-          existing.userId,
-          existing.id,
-        );
+    await ref
+        .read(reflectionRepositoryProvider)
+        .deleteReflection(existing.userId, existing.id);
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -105,11 +108,14 @@ class _ReflectionComposeScreenState extends ConsumerState<ReflectionComposeScree
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.existing != null ? 'Edit reflection' : 'New reflection'),
+        title: Text(
+          widget.existing != null ? 'Edit reflection' : 'New reflection',
+        ),
         actions: [
           if (widget.existing != null)
             IconButton(
               icon: const Icon(Icons.delete_outline),
+              tooltip: 'Delete reflection',
               onPressed: _delete,
             ),
         ],

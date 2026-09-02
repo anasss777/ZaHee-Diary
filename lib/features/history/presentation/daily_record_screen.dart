@@ -176,7 +176,7 @@ class _GoalRecordRow extends StatelessWidget {
       dense: true,
       leading: Icon(
         isCompleted ? Icons.check_circle : Icons.circle_outlined,
-        color: isCompleted ? scheme.primary : scheme.outline,
+        color: isCompleted ? scheme.primary : scheme.onSurfaceVariant,
       ),
       title: Text(goal.title),
       subtitle: subtitle != null ? Text(subtitle) : null,

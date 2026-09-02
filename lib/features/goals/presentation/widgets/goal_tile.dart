@@ -130,6 +130,9 @@ class GoalTile extends ConsumerWidget {
 
     return ListTile(
       leading: IconButton(
+        tooltip: isCompleted
+            ? 'Mark "${goal.title}" as not done'
+            : 'Mark "${goal.title}" as done',
         icon: AnimatedSwitcher(
           duration: motionDuration(context, const Duration(milliseconds: 180)),
           transitionBuilder: (child, animation) => ScaleTransition(
