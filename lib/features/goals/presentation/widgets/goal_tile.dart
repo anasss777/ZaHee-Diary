@@ -23,16 +23,7 @@ import '../providers/goal_providers.dart';
 /// something this change should make silently by half-wiring it.
 class GoalTile extends ConsumerWidget {
   final Goal goal;
-
-  /// The Goals screen offers archiving from here; Today and History are
-  /// daily-use surfaces and deliberately don't expose goal management
-  /// actions (TRD's "do first" philosophy).
   final bool showManagementActions;
-
-  /// Which day this tile reflects completion for. Defaults to today
-  /// (via [todayProvider]) when omitted — History passes a specific past
-  /// date so the same widget works for "today" and "any day" without a
-  /// separate read-only variant.
   final DateTime? date;
 
   const GoalTile({
@@ -52,11 +43,6 @@ class GoalTile extends ConsumerWidget {
     if (actions == null) return;
 
     if (isCompleted) {
-      // A lighter, neutral click rather than an impact — undoing is a
-      // normal, everyday action here (correcting a mis-tap, changing
-      // your mind), not something to give negative/punitive feedback
-      // for. Matches TRD's non-judgmental tone in haptic form, not just
-      // wording.
       HapticFeedback.selectionClick();
       await actions.undo(goal, date: effectiveDate);
       return;
@@ -68,37 +54,48 @@ class GoalTile extends ConsumerWidget {
       return;
     }
 
-    // Numeric goal: ask for the value before recording completion.
     final controller = TextEditingController(
       text: goal.target?.toStringAsFixed(0) ?? '',
     );
+
     final value = await showDialog<double>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(goal.title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: goal.unit ?? 'Value',
-            helperText: goal.target != null
-                ? 'Target: ${goal.target!.toStringAsFixed(0)} ${goal.unit ?? ''}'
-                : null,
+      builder: (context) {
+        final theme = Theme.of(context);
+        final colors = theme.colorScheme;
+
+        return AlertDialog(
+          title: Text(goal.title),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: goal.unit ?? 'Value',
+              helperText: goal.target != null
+                  ? 'Target: ${goal.target!.toStringAsFixed(0)} ${goal.unit ?? ''}'
+                  : null,
+              filled: true,
+              fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.5),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.of(context).pop(double.tryParse(controller.text)),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(double.tryParse(controller.text)),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
     );
 
     if (value != null) {
@@ -109,15 +106,13 @@ class GoalTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     final today = ref.watch(todayProvider);
     final effectiveDate = date ?? today;
     final isFutureDate = effectiveDate.isAfter(today);
 
-    // Explicit date (History showing a specific past day) → exact-day
-    // status, matching what actually happened that day. No explicit
-    // date (Today/Goals, meaning "right now") → frequency-aware status:
-    // a weekly/monthly goal reads as complete for the whole period once
-    // satisfied anywhere in it, not just on the day it was done.
     final isCompleted = date != null
         ? ref.watch(
             isCompletedOnDateProvider((goalId: goal.id, date: effectiveDate)),
@@ -128,63 +123,161 @@ class GoalTile extends ConsumerWidget {
         ? '${goal.frequency.label} · ${goal.target?.toStringAsFixed(0)} ${goal.unit ?? ''}'
         : goal.frequency.label;
 
-    return ListTile(
-      leading: IconButton(
-        tooltip: isCompleted
-            ? 'Mark "${goal.title}" as not done'
-            : 'Mark "${goal.title}" as done',
-        icon: AnimatedSwitcher(
-          duration: motionDuration(context, const Duration(milliseconds: 180)),
-          transitionBuilder: (child, animation) => ScaleTransition(
-            scale: animation,
-            child: FadeTransition(opacity: animation, child: child),
-          ),
-          child: Icon(
-            isCompleted ? Icons.check_circle : Icons.circle_outlined,
-            // The KEY is what makes AnimatedSwitcher treat these as two
-            // different widgets to cross-fade between, rather than one
-            // it just mutates in place with no transition.
-            key: ValueKey(isCompleted),
-            color: isCompleted
-                ? Theme.of(context).colorScheme.primary
-                : isFutureDate
-                ? Theme.of(context).disabledColor
-                : null,
+    final backgroundColor = isCompleted
+        ? colors.primaryContainer.withValues(alpha: 0.35)
+        : colors.surfaceContainerLow;
+
+    return Material(
+      color: backgroundColor,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: showManagementActions
+            ? () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => GoalFormScreen(goal: goal)),
+              )
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              _CompletionButton(
+                isCompleted: isCompleted,
+                isFutureDate: isFutureDate,
+                title: goal.title,
+                onPressed: isFutureDate
+                    ? null
+                    : () => _handleCheckboxTap(
+                        context,
+                        ref,
+                        isCompleted,
+                        effectiveDate,
+                      ),
+              ),
+
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      goal.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        decoration: isCompleted
+                            ? TextDecoration.lineThrough
+                            : null,
+                        decorationThickness: 1.5,
+                        color: isCompleted
+                            ? colors.onSurfaceVariant
+                            : colors.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              if (showManagementActions)
+                PopupMenuButton<String>(
+                  tooltip: 'Goal options',
+                  icon: Icon(
+                    Icons.more_horiz_rounded,
+                    color: colors.onSurfaceVariant,
+                  ),
+                  onSelected: (value) async {
+                    final repo = ref.read(goalRepositoryProvider);
+
+                    if (value == 'archive') {
+                      await repo.archiveGoal(goal.userId, goal.id);
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'archive', child: Text('Archive')),
+                  ],
+                ),
+            ],
           ),
         ),
-        // Completing a goal for a future date doesn't make sense — the
-        // control is visible (so the layout stays consistent day to
-        // day) but inert.
-        onPressed: isFutureDate
-            ? null
-            : () =>
-                  _handleCheckboxTap(context, ref, isCompleted, effectiveDate),
       ),
-      title: Text(
-        goal.title,
-        style: isCompleted
-            ? const TextStyle(decoration: TextDecoration.lineThrough)
-            : null,
+    );
+  }
+}
+
+class _CompletionButton extends StatelessWidget {
+  final bool isCompleted;
+  final bool isFutureDate;
+  final String title;
+  final VoidCallback? onPressed;
+
+  const _CompletionButton({
+    required this.isCompleted,
+    required this.isFutureDate,
+    required this.title,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    return Semantics(
+      button: true,
+      label: isCompleted
+          ? 'Mark "$title" as not done'
+          : 'Mark "$title" as done',
+      child: InkWell(
+        onTap: onPressed,
+        customBorder: const CircleBorder(),
+        child: AnimatedSwitcher(
+          duration: motionDuration(context, const Duration(milliseconds: 220)),
+          transitionBuilder: (child, animation) {
+            return ScaleTransition(
+              scale: CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutBack,
+              ),
+              child: FadeTransition(opacity: animation, child: child),
+            );
+          },
+          child: Container(
+            key: ValueKey(isCompleted),
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isCompleted ? colors.primary : Colors.transparent,
+              border: Border.all(
+                color: isCompleted
+                    ? colors.primary
+                    : isFutureDate
+                    ? colors.outlineVariant
+                    : colors.outline,
+                width: 2,
+              ),
+            ),
+            child: Icon(
+              Icons.check_rounded,
+              size: 22,
+              color: isCompleted
+                  ? colors.onPrimary
+                  : isFutureDate
+                  ? colors.outlineVariant
+                  : Colors.transparent,
+            ),
+          ),
+        ),
       ),
-      subtitle: Text(subtitle),
-      onTap: showManagementActions
-          ? () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => GoalFormScreen(goal: goal)),
-            )
-          : null,
-      trailing: showManagementActions
-          ? PopupMenuButton<String>(
-              onSelected: (value) async {
-                final repo = ref.read(goalRepositoryProvider);
-                if (value == 'archive') {
-                  await repo.archiveGoal(goal.userId, goal.id);
-                }
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem(value: 'archive', child: Text('Archive')),
-              ],
-            )
-          : null,
     );
   }
 }
