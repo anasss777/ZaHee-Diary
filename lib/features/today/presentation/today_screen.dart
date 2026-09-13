@@ -441,7 +441,7 @@ class _DomainExpansion extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: colors.surface,
+        color: colors.primaryFixedDim.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: colors.outlineVariant.withValues(alpha: 0.45),
