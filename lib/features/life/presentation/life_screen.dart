@@ -58,7 +58,6 @@ class _LifeScreenState extends ConsumerState<LifeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     final stats = ref.watch(domainStatsProvider((_period, _anchor)));
 

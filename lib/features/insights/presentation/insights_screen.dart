@@ -112,7 +112,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                       )
                     : ListView.separated(
                         itemCount: insights.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
                         itemBuilder: (context, i) =>
                             _InsightCard(insight: insights[i]),
                       ),
