@@ -6,6 +6,7 @@ import '../../../core/models/notification_preferences.dart';
 import '../../../core/router/app_routes.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../notifications/presentation/providers/notification_providers.dart';
+import '../../../core/theme/theme_provider.dart';
 
 String _formatTime(int hour, int minute) {
   final period = hour < 12 ? 'AM' : 'PM';
@@ -24,6 +25,123 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isDetectingTimezone = false;
   bool _isSigningOut = false;
   bool _isDeletingAccount = false;
+
+  Future<void> _showThemeColorPicker(
+    BuildContext context,
+    WidgetRef ref,
+    Color currentColor,
+  ) async {
+    const colors = [
+      Color(0xFF334155), // Slate
+      Color(0xFF2563EB), // Blue
+      Color(0xFF4F46E5), // Indigo
+      Color(0xFF7C3AED), // Violet
+      Color(0xFFDB2777), // Pink
+      Color(0xFFDC2626), // Red
+      Color(0xFFEA580C), // Orange
+      Color(0xFFCA8A04), // Yellow
+      Color(0xFF16A34A), // Green
+      Color(0xFF0D9488), // Teal
+      Color(0xFF0891B2), // Cyan
+      Color(0xFF475569), // Gray
+    ];
+
+    final selectedColor = await showDialog<Color>(
+      context: context,
+      builder: (dialogContext) {
+        Color temporaryColor = currentColor;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text(
+                'Theme color',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              content: Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (final color in colors)
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          temporaryColor = color;
+                        });
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: temporaryColor == color
+                                ? Theme.of(context).colorScheme.onSurface
+                                : Colors.transparent,
+                            width: 3,
+                          ),
+                        ),
+                        child: temporaryColor == color
+                            ? Icon(
+                                Icons.check_rounded,
+                                color: _contrastColor(color),
+                              )
+                            : null,
+                      ),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop(temporaryColor);
+                  },
+                  child: const Text('Apply'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (selectedColor == null) return;
+
+    await ref.read(themeSeedColorProvider.notifier).setColor(selectedColor);
+  }
+
+  String _themeColorName(Color color) {
+    const names = <int, String>{
+      0xFF334155: 'Slate',
+      0xFF2563EB: 'Blue',
+      0xFF4F46E5: 'Indigo',
+      0xFF7C3AED: 'Violet',
+      0xFFDB2777: 'Pink',
+      0xFFDC2626: 'Red',
+      0xFFEA580C: 'Orange',
+      0xFFCA8A04: 'Yellow',
+      0xFF16A34A: 'Green',
+      0xFF0D9488: 'Teal',
+      0xFF0891B2: 'Cyan',
+      0xFF475569: 'Gray',
+    };
+
+    return names[color.toARGB32()] ?? 'Custom';
+  }
+
+  Color _contrastColor(Color color) {
+    final luminance = color.computeLuminance();
+
+    return luminance > 0.5 ? Colors.black : Colors.white;
+  }
 
   Future<void> _detectTimezone(String userId) async {
     setState(() => _isDetectingTimezone = true);
@@ -214,6 +332,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateChangesProvider).value;
+    final themeMode = ref.watch(themeModeProvider);
+    final seedColor = ref.watch(themeSeedColorProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -271,6 +391,53 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             onPressed: () => _detectTimezone(user.id),
                             child: const Text('Detect'),
                           ),
+                  ),
+
+                  const Divider(height: 32),
+
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 4),
+                    child: Text(
+                      'APPEARANCE',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+
+                  SwitchListTile(
+                    secondary: Icon(
+                      themeMode == ThemeMode.dark
+                          ? Icons.dark_mode_outlined
+                          : Icons.light_mode_outlined,
+                    ),
+                    title: const Text('Dark mode'),
+                    subtitle: Text(
+                      themeMode == ThemeMode.dark
+                          ? 'Dark theme is enabled'
+                          : 'Light theme is enabled',
+                    ),
+                    value: themeMode == ThemeMode.dark,
+                    onChanged: (enabled) {
+                      ref
+                          .read(themeModeProvider.notifier)
+                          .setThemeMode(
+                            enabled ? ThemeMode.dark : ThemeMode.light,
+                          );
+                    },
+                  ),
+
+                  ListTile(
+                    leading: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: seedColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    title: const Text('Theme color'),
+                    subtitle: Text(_themeColorName(seedColor)),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _showThemeColorPicker(context, ref, seedColor),
                   ),
 
                   // ElevatedButton(

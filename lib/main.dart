@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
+import 'core/theme/theme_provider.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
 import 'features/notifications/presentation/providers/notification_providers.dart';
 
@@ -72,6 +73,8 @@ class ZaheeJournalApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final seedColor = ref.watch(themeSeedColorProvider);
 
     // Whenever the signed-in user's profile changes — including right
     // after Settings persists a preference change, since that write
@@ -102,8 +105,21 @@ class ZaheeJournalApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Zahee Journal',
       debugShowCheckedModeBanner: false,
+      themeMode: themeMode,
+
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF334155)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: seedColor,
+          brightness: Brightness.light,
+        ),
+        useMaterial3: true,
+      ),
+
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: seedColor,
+          brightness: Brightness.dark,
+        ),
         useMaterial3: true,
       ),
       routerConfig: router,

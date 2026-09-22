@@ -194,17 +194,6 @@ class TodayScreen extends ConsumerWidget {
             if (!hasAnyGoals)
               const _NoGoalsYetCard()
             else ...[
-              for (final domain in LifeDomain.values)
-                if (goalsByDomain[domain]!.isNotEmpty)
-                  _DomainExpansion(
-                    domain: domain,
-                    goals: goalsByDomain[domain]!,
-                  ),
-
-              const Divider(height: 32),
-
-              const SizedBox(height: 8),
-
               // ─────────────────────────────────────────────
               // Daily progress
               // ─────────────────────────────────────────────
@@ -372,6 +361,15 @@ class TodayScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+
+              const SizedBox(height: 20),
+
+              for (final domain in LifeDomain.values)
+                if (goalsByDomain[domain]!.isNotEmpty)
+                  _DomainExpansion(
+                    domain: domain,
+                    goals: goalsByDomain[domain]!,
+                  ),
             ],
           ],
         ),
@@ -444,7 +442,7 @@ class _DomainExpansion extends ConsumerWidget {
         color: colors.primaryFixedDim.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: colors.outlineVariant.withValues(alpha: 0.45),
+          color: colors.primaryContainer.withValues(alpha: 0.5),
         ),
         boxShadow: [
           BoxShadow(

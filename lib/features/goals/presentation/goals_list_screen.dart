@@ -120,7 +120,7 @@ class _DomainSection extends ConsumerWidget {
           color: colors.primaryFixedDim.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: colors.outlineVariant.withValues(alpha: 0.45),
+            color: colors.primaryContainer.withValues(alpha: 0.5),
           ),
           boxShadow: [
             BoxShadow(
